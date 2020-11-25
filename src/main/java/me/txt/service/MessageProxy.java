@@ -8,7 +8,8 @@ import org.springframework.stereotype.Component;
 import java.util.concurrent.Executors;
 
 @Component
-public class MessageProxy implements Runnable {
+@SuppressWarnings("InfiniteLoopStatement")
+public class MessageProxy {
 
     private final static Logger log = LoggerFactory.getLogger(MessageProxy.class);
 
@@ -19,32 +20,51 @@ public class MessageProxy implements Runnable {
         this.messageQueue = messageQueue;
         this.messageSender = messageSender;
 
-        Executors.newSingleThreadExecutor().submit(this);
+        Executors.newSingleThreadExecutor().submit(this::runProxy);
     }
 
-    @Override
-    @SuppressWarnings({"InfiniteLoopStatement", "BusyWait"})
-    public void run() {
-        while (true) {
-            Message message = messageQueue.take();
+    private void runProxy() {
 
+        // process messages
+        while (true) {
             try {
-                messageSender.send(message);
+                // get message, wait if needed
+                Message message = messageQueue.take();
+
+                // try to send message
+                sendWithRetry(message);
+
+                // sent successfully
                 log.info("Message sent: {}", message);
+            }
+            catch (InterruptedException e) {
+                // ignore
+            }
+        }
+    }
+
+    @SuppressWarnings("BusyWait")
+    private void sendWithRetry(Message message) {
+
+        while (true) {
+            try {
+                // try to send message
+                messageSender.send(message);
+
+                break;
             }
             catch (Exception e) {
                 log.error("Failed to send message: {}", message);
 
+                // wait before next attempt when sender will be available
                 try {
                     Thread.sleep(1000L);
+                } catch (InterruptedException interruptedException) {
+                    // ignore
                 }
-                catch (InterruptedException interruptedException) {
-                    // interrupted
-                }
-
-                messageQueue.putBack(message);
             }
         }
+
     }
 
 }
