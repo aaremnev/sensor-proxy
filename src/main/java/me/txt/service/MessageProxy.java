@@ -5,7 +5,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
+import javax.annotation.PostConstruct;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.stream.IntStream;
 
 /**
  * Provides retransmission loop between
@@ -15,19 +18,32 @@ import java.util.concurrent.Executors;
 public class MessageProxy {
 
     private final static Logger log = LoggerFactory.getLogger(MessageProxy.class);
+
     private final static long MAX_RETRY_INTERVAL = 32000;
+    private static final int PARALLEL_SENDERS = 2;
 
     private final MessageQueue messageQueue;
     private final MessageSender messageSender;
+
+    private final ExecutorService executor;
+
 
     public MessageProxy(MessageQueue messageQueue, FileMessageSender messageSender) {
         this.messageQueue = messageQueue;
         this.messageSender = messageSender;
 
-        Executors.newSingleThreadExecutor().submit(this::runProxy);
+        // start proxy in a thread pool with a configured parallelism
+        executor = Executors.newFixedThreadPool(PARALLEL_SENDERS);
+        IntStream.range(0, PARALLEL_SENDERS).forEach($ -> executor.submit(this::runProxy));
+    }
+
+    @PostConstruct
+    public void finalize() {
+        executor.shutdownNow();
     }
 
     private void runProxy() {
+        log.info("Start proxy processing thread...");
 
         // process messages from queue
         while (true) {
