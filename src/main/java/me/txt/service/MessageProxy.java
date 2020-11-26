@@ -5,7 +5,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
-import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -79,7 +78,7 @@ public class MessageProxy {
                 break;
             }
             catch (Exception e) {
-                log.error("Failed to send message: {}", message);
+                log.warn("Failed to send message: {}", message);
 
                 // wait before next attempt when sender will be available
                 try {
