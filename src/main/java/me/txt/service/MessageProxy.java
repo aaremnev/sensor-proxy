@@ -6,6 +6,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 import javax.annotation.PostConstruct;
+import javax.annotation.PreDestroy;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.stream.IntStream;
@@ -28,21 +29,21 @@ public class MessageProxy {
     private final ExecutorService executor;
 
 
-    public MessageProxy(MessageQueue messageQueue, FileMessageSender messageSender) {
+    public MessageProxy(MessageQueue messageQueue, MessageSender messageSender) {
         this.messageQueue = messageQueue;
         this.messageSender = messageSender;
 
         // start proxy in a thread pool with a configured parallelism
         executor = Executors.newFixedThreadPool(PARALLEL_SENDERS);
-        IntStream.range(0, PARALLEL_SENDERS).forEach($ -> executor.submit(this::runProxy));
+        IntStream.range(0, PARALLEL_SENDERS).forEach($ -> executor.submit(this::runMessageProcessing));
     }
 
-    @PostConstruct
+    @PreDestroy
     public void finalize() {
         executor.shutdownNow();
     }
 
-    private void runProxy() {
+    private void runMessageProcessing() {
         log.info("Start proxy processing thread...");
 
         // process messages from queue
@@ -64,7 +65,7 @@ public class MessageProxy {
     }
 
     @SuppressWarnings("BusyWait")
-    private void sendWithRetry(Message message) {
+    void sendWithRetry(Message message) {
         long retryInterval = 1000;
         int retryCount = 0;
 
