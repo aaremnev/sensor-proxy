@@ -19,8 +19,7 @@ public class MessageQueue {
 
     private final BlockingQueue<Message> queue = new LinkedBlockingQueue<>();
 
-    public void put(String clientId, String data) {
-        Message message = new Message(clientId, System.nanoTime(), data);
+    public void put(Message message) {
         queue.add(message);
         log.info("Message received: {}", message);
     }
